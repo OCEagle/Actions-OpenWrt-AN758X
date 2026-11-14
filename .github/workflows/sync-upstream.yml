@@ -1,8 +1,7 @@
 name: Sync Upstream
 
-# fork 不会自动跟上游，这个工作流负责「对齐上游 + 保住本地默认值」。
-# 冲突策略：merge 时 -X theirs 一律以上游为准；随后用脚本把我们的 6 个默认值重新写回。
-# 脚本是幂等的：已是目标值就跳过；锚点找不到就直接失败，绝不静默写坏 yml。
+# 目标：让 build-ponwrt.yml 始终与上游一致，本仓库不再维护本地默认值。
+# 自定义默认值已迁到 build-040md.yml（上游没有这个文件，merge 不会碰它）。
 
 on:
   schedule:
@@ -43,71 +42,18 @@ jobs:
           git remote add upstream https://github.com/qwe-qaq/Actions-OpenWrt-AN758X.git
           git fetch --no-tags upstream main
 
-      - name: Merge upstream (upstream wins on conflicts)
+      - name: Merge upstream (upstream wins)
         run: |
           set -euo pipefail
           git merge --no-edit -X theirs upstream/main || { echo '::error::merge 未能自动收敛，需要人工处理'; git status --short; exit 1; }
-
-      - name: Re-apply local defaults
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          import re, sys, pathlib
-
-          PATH = pathlib.Path('.github/workflows/build-ponwrt.yml')
-          WANT = {
-              'profile':      'nokia_xg-040g-md-ubi',
-              'opt_arm64ce':  '1',
-              'opt_chacha':   '1',
-              'opt_eip93':    '0',
-              'fw_author':    'openwrt',
-              'private_repo': 'none',
-          }
-
-          lines = PATH.read_text(encoding='utf-8').split('\n')
-          seen, changed, cur, in_inputs = set(), [], None, False
-
-          for i, line in enumerate(lines):
-              if re.match(r'^    inputs:\s*$', line):
-                  in_inputs = True
-                  continue
-              if in_inputs and re.match(r'^[^ \n]', line):
-                  in_inputs = False
-              if not in_inputs:
-                  continue
-              m = re.match(r'^      ([A-Za-z0-9_-]+):\s*$', line)
-              if m:
-                  cur = m.group(1)
-                  continue
-              if cur in WANT:
-                  m2 = re.match(r'^        default:\s*(\S.*?)\s*$', line)
-                  if m2:
-                      old = m2.group(1)
-                      new = "'" + WANT[cur] + "'"
-                      seen.add(cur)
-                      if old != new:
-                          lines[i] = '        default: ' + new
-                          changed.append((cur, old, new))
-                      cur = None
-
-          missing = sorted(set(WANT) - seen)
-          if missing:
-              sys.exit('::error::默认值锚点缺失，上游可能改了 inputs 结构: ' + ','.join(missing))
-
-          if changed:
-              for k, o, n in changed:
-                  print('set %s: %s -> %s' % (k, o, n))
-              pathlib.Path(PATH).write_text('\n'.join(lines), encoding='utf-8')
-          else:
-              print('local defaults already in place')
-          PY
+          git checkout upstream/main -- .github/workflows/build-ponwrt.yml
 
       - name: Commit and push
         if: inputs.dry_run != 'true'
         run: |
           set -euo pipefail
-          git add .github/workflows/build-ponwrt.yml
-          git diff --cached --quiet || git commit -m 'chore(ci): 同步上游并重打本地默认值 [skip ci]'
+          git add -A .github/workflows/build-ponwrt.yml
+          git diff --cached --quiet || git commit -m 'chore(ci): 对齐上游 [skip ci]'
           if [ -n "$(git log --oneline origin/main..HEAD)" ]; then
             git push origin HEAD:main
           else
