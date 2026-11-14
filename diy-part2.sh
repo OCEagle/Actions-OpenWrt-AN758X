@@ -51,6 +51,27 @@ EOF
 chmod +x files/etc/uci-defaults/99-timezone-cn
 echo "✅ uci-defaults 时区脚本已写入"
 
+# 2b. uci-defaults：LAN 地址 + 默认主题（Vantage）
+#    改 ipaddr 必须同时把 DHCP 池挪进新网段，否则客户端会拿到旧网段地址。
+mkdir -p files/etc/uci-defaults
+cat > files/etc/uci-defaults/97-lan-ip-theme <<'EOF'
+#!/bin/sh
+uci -q batch <<'UCI'
+set network.lan.ipaddr='192.168.8.1'
+set dhcp.lan.start='100'
+set dhcp.lan.limit='150'
+set luci.main.mediaurlbase='/luci-static/vantage'
+set luci.themes.Vantage='/luci-static/vantage'
+commit network
+commit dhcp
+commit luci
+UCI
+exit 0
+EOF
+chmod +x files/etc/uci-defaults/97-lan-ip-theme
+echo "✅ uci-defaults LAN/主题脚本已写入（192.168.8.1 + Vantage）"
+
+
 # 3. 亚洲时区数据库（LuCI 显示与时区切换需要）
 if [ -f .config ]; then
   sed -i '/^CONFIG_PACKAGE_zoneinfo-asia=/d; /^# CONFIG_PACKAGE_zoneinfo-asia is not set/d' .config
