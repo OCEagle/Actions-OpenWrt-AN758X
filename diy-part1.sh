@@ -22,6 +22,7 @@ ADD_AIROHA_NPU=true    # luci-app-airoha-npu：Airoha SoC 状态页（NPU/CPU/Fr
 ADD_FLUENT=true        # luci-theme-fluent：Fluent 2 风格主题
 ADD_FLUENT_LITE=false  # luci-theme-fluent-lite：轻量版（与 fluent 互斥，二选一）
 ADD_FLUENT_DASH=false  # luci-mod-fluentdashboard：可选状态概览卡片
+ADD_VANTAGE=true        # luci-theme-vantage：Vantage 主题（anothaDev/luci-theme-vantage，包在仓库子目录）
 ADD_PASSWALL=true      # luci-app-passwall（只用 feeds 的依赖包）
 ADD_OPENCLASH=true     # luci-app-openclash ⚠ 依赖 Ruby/Rust，编译极慢
 ADD_MOSDNS=true        # luci-app-mosdns（本体只用 feeds 的 mosdns）
@@ -314,6 +315,21 @@ if [ "$ADD_FLUENT" = "true" ] || [ "$ADD_FLUENT_LITE" = "true" ] || [ "$ADD_FLUE
     echo "✅ 已拷贝: $p"
   done
   rm -rf "$FLUENT_TMP"
+fi
+# --- luci-theme-vantage ---
+# ⚠ 主题包在仓库的 luci-theme-vantage/ 子目录下（仓库根另有 luci-app-vantage），
+#   必须把子目录拷出来，否则 buildroot 扫不到 Makefile（同 fluent 的处理）
+if [ "$ADD_VANTAGE" = "true" ]; then
+  VANTAGE_TMP="$(mktemp -d)/vantage"
+  clone https://github.com/anothaDev/luci-theme-vantage "$VANTAGE_TMP" main
+  if [ -d "$VANTAGE_TMP/luci-theme-vantage" ]; then
+    rm -rf "$PKG_DIR/luci-theme-vantage"
+    cp -a "$VANTAGE_TMP/luci-theme-vantage" "$PKG_DIR/luci-theme-vantage"
+    echo "✅ 已拷贝: luci-theme-vantage"
+  else
+    echo "::error::luci-theme-vantage 子目录不存在"
+  fi
+  rm -rf "$VANTAGE_TMP"
 fi
 
 if [ "$ADD_EASYTIER" = "true" ]; then
