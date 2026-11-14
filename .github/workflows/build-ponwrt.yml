@@ -67,7 +67,7 @@ on:
       profile:
         description: '机型 profile (all=全机型编译)'
         required: true
-        default: 'nokia_xg-040g-md-ubi'
+        default: 'fiberhome_an4475-g2'
         type: choice
         options:
           - fiberhome_hg5585f-cu
@@ -87,7 +87,7 @@ on:
       opt_arm64ce:
         description: 'arm64 汇编加密实现（AN7581 走 NEON 位切片 / AN7583 走 CE，按 SoC 自动选）'
         required: false
-        default: '1'
+        default: '0'
         type: choice
         options:
           - '0'
@@ -96,7 +96,7 @@ on:
       opt_chacha:
         description: 'ChaCha20-Poly1305 NEON（Xray / sing-box / WireGuard 推荐）。注：机型 configs 里 chacha20 三个包本就默认 =y，此开关主要额外带 gcm/ccm/ctr/xts'
         required: false
-        default: '1'
+        default: '0'
         type: choice
         options:
           - '0'
@@ -146,7 +146,7 @@ on:
       fw_author:
         description: '覆盖固件版本后缀的作者名（LuCI 概览页「固件版本」）。留空 = qwe'
         required: false
-        default: 'openwrt'
+        default: 'qwe'
       upload_release:
         description: '固件发布到 Release（false 则只传 Artifact）'
         required: false
@@ -158,7 +158,7 @@ on:
       private_repo:
         description: '拉取私有仓库（FTTR 三件套来源，需凭证）'
         required: false
-        default: 'none'
+        default: 'qwe-qaq/openwrt-fttr'
         type: choice
         options:
           - qwe-qaq/openwrt-fttr
