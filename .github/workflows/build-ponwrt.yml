@@ -158,7 +158,7 @@ on:
       private_repo:
         description: '拉取私有仓库（FTTR 三件套来源，需凭证）'
         required: false
-        default: 'qwe-qaq/openwrt-fttr'
+        default: 'none'
         type: choice
         options:
           - qwe-qaq/openwrt-fttr
