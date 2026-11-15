@@ -653,6 +653,20 @@ jobs:
             echo "已裁剪为: CONFIG_TARGET_DEVICE_airoha_${SOC}_DEVICE_${PROFILE}=y"
           fi
 
+      - name: Append 040MD config delta
+        run: |
+          cd "$BUILD_ROOT/openwrt"
+          F="$GITHUB_WORKSPACE/configs/040md.config"
+          [ -f "$F" ] || { echo "::error::缺 $F"; exit 1; }
+          cat "$F" >> .config
+          echo "✅ 已追加 040MD 增量配置（$(grep -c '^CONFIG_PACKAGE' "$F") 项）"
+
+      # 040MD 专用插件（gecoosac 整仓 / vantage 主题子目录）—— 上游 diy-part1.sh 不含这两个
+      - name: Pull 040MD extra plugins
+        run: |
+          cd "$BUILD_ROOT/openwrt"
+          chmod +x "$GITHUB_WORKSPACE/scripts/040md-extra.sh"
+          "$GITHUB_WORKSPACE/scripts/040md-extra.sh"
       # diy-part2.sh：时区 + 固件版本后缀，加密可选包也在这里注入。
       # 必须早于 defconfig，否则写进 .config 的符号会被重新展开覆盖。
       - name: Set timezone to China (diy-part2.sh)
