@@ -95,13 +95,6 @@ if [ "$ADD_LUCI_APP" = "true" ]; then
   done
   rm -rf "$LUCI_APP_TMP"
 fi
-# --- fitblk：Makefile 里有 HIDDEN:=1，隐藏包无法被 CONFIG_PACKAGE_fitblk=y 选中 ---
-# 隐藏包只能被其它包以依赖方式拉入，所以 defconfig 一直把它剔除（固件里没有 /usr/sbin/fitblk）。
-# 这里去掉 HIDDEN 标记；它的 DEPENDS(+fit-check-sign) 已由 config 里显式选中满足。
-if [ -f package/utils/fitblk/Makefile ]; then
-  sed -i '/^[[:space:]]*HIDDEN:=1[[:space:]]*$/d' package/utils/fitblk/Makefile
-  echo "✅ fitblk: 已移除 HIDDEN 标记（使其可被 CONFIG_PACKAGE_fitblk=y 选中）"
-fi
 # --- luci-app-gecoosac ---
 # ⚠ 仓库里是两个目录：luci-app-gecoosac（前端）+ gecoosac（核心，按架构下载预编译二进制，
 #   PROVIDES 了 gecoosac-files / gecoosac-common 两个虚包），两个都要拷进 package/。
