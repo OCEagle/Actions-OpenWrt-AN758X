@@ -116,22 +116,24 @@ if [ "$OPT_CRYPTO_ARM64CE" = "1" ]; then
 
   # 用 for 直接枚举，不用 IFS + set --。
   # 本文件被 source 时 set -- 会把父脚本 diy-part2.sh 的位置参数清空。
+  # 只放两个 SoC 都成立的基础项（SIMD 是汇编实现前置，CRYPTD 提供异步包装）。
+  # ⚠ CE（Crypto Extensions）专用实现不能放这里：AN7581 是 Cortex-A53，
+  #   /proc/cpuinfo 没有 aes/sha2，这些模块编进去也不会注册，白占体积。
   COMMON_KCFG="
-CONFIG_ARM64_CRYPTO=y
 CONFIG_CRYPTO_SIMD=y
-CONFIG_CRYPTO_CRYPTD=y
-CONFIG_CRYPTO_AES_ARM64=y
-CONFIG_CRYPTO_SHA256_ARM64=y
-CONFIG_CRYPTO_SHA512_ARM64=y"
+CONFIG_CRYPTO_CRYPTD=y"
 
   if [ "$SOC" = "an7583" ]; then
     # AN7583: /proc/cpuinfo 有 aes pmull sha1 sha2，走 Crypto Extensions
     SOC_KCFG="
+CONFIG_CRYPTO_AES_ARM64=y
 CONFIG_CRYPTO_AES_ARM64_CE=y
 CONFIG_CRYPTO_AES_ARM64_CE_BLK=y
 CONFIG_CRYPTO_AES_ARM64_CE_CCM=y
 CONFIG_CRYPTO_GHASH_ARM64_CE=y
 CONFIG_CRYPTO_SHA1_ARM64_CE=y
+CONFIG_CRYPTO_SHA256_ARM64=y
+CONFIG_CRYPTO_SHA512_ARM64=y
 CONFIG_CRYPTO_SHA2_ARM64_CE=y
 CONFIG_CRYPTO_SHA512_ARM64_CE=y"
   else
