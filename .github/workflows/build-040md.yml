@@ -855,13 +855,16 @@ jobs:
             done
           fi
 
-          # 内核符号复核：目标 kernel config 里应能看到我们写进去的项
-          KCFG="$(ls target/linux/airoha/${SUBTARGET:-${SOC}}/config-* 2>/dev/null | head -1)"
+          # 内核符号复核：按 SoC 检查真正该写进去的那一项
+          #   AN7581（Cortex-A53，无 aes/sha2 指令）→ AES_ARM64_BS（NEON 位切片）
+          #   AN7583（有 aes/pmull）               → AES_ARM64_CE_BLK（Crypto Extensions）
+          KCFG="$(ls target/linux/airoha/${SUBTARGET:-${SOC}}/config-* 2>/dev/null | sort -V | tail -1)"
           if [ "${WANT_ARM64CE}" = "1" ] && [ -n "$KCFG" ]; then
-            if grep -q '^CONFIG_CRYPTO_AES_ARM64=y' "$KCFG"; then
-              echo "  ✅ 内核符号已写入 ${KCFG}"
+            if [ "${SOC}" = "an7583" ]; then KC_EXPECT="CONFIG_CRYPTO_AES_ARM64_CE_BLK"; else KC_EXPECT="CONFIG_CRYPTO_AES_ARM64_BS"; fi
+            if grep -q "^${KC_EXPECT}=y" "$KCFG"; then
+              echo "  ✅ 内核符号已写入 ${KCFG}: ${KC_EXPECT}"
             else
-              echo "::warning::${KCFG} 里没有 CONFIG_CRYPTO_AES_ARM64 —— diy-part2-crypto.sh 未生效（没被 source？路径不对？）"
+              echo "::warning::${KCFG} 里没有 ${KC_EXPECT} —— diy-part2-crypto.sh 未生效（没被 source？路径不对？）"
             fi
           fi
 
