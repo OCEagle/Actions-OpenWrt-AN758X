@@ -51,27 +51,6 @@ EOF
 chmod +x files/etc/uci-defaults/99-timezone-cn
 echo "✅ uci-defaults 时区脚本已写入"
 
-# 2b. uci-defaults：LAN 地址 + 默认主题（Vantage）
-#    改 ipaddr 必须同时把 DHCP 池挪进新网段，否则客户端会拿到旧网段地址。
-mkdir -p files/etc/uci-defaults
-cat > files/etc/uci-defaults/97-lan-ip-theme <<'EOF'
-#!/bin/sh
-uci -q batch <<'UCI'
-set network.lan.ipaddr='192.168.8.1'
-set dhcp.lan.start='100'
-set dhcp.lan.limit='150'
-set luci.main.mediaurlbase='/luci-static/vantage'
-set luci.themes.Vantage='/luci-static/vantage'
-commit network
-commit dhcp
-commit luci
-UCI
-exit 0
-EOF
-chmod +x files/etc/uci-defaults/97-lan-ip-theme
-echo "✅ uci-defaults LAN/主题脚本已写入（192.168.8.1 + Vantage）"
-
-
 # 3. 亚洲时区数据库（LuCI 显示与时区切换需要）
 if [ -f .config ]; then
   sed -i '/^CONFIG_PACKAGE_zoneinfo-asia=/d; /^# CONFIG_PACKAGE_zoneinfo-asia is not set/d' .config
@@ -242,11 +221,6 @@ fi
 # 用 -f 不用 -x：git checkout / Windows 打包会丢可执行位。
 # || true：本文件是 set -euo pipefail，子脚本返回非 0 会让整轮构建中断，
 # 而加密只是可选增强。
-CRYPTO_SH="$(dirname "$0")/scripts/diy-part2-crypto.sh"
-if [ -f "$CRYPTO_SH" ]; then
-  . "$CRYPTO_SH"
-else
-  echo "::warning::缺 $CRYPTO_SH —— 加密加速补丁未执行（ARM64CE=$OPT_CRYPTO_ARM64CE CHACHA=$OPT_CRYPTO_CHACHA EIP93=$OPT_CRYPTO_EIP93）"
-fi
+[ -f scripts/diy-part2-crypto.sh ] && . ./scripts/diy-part2-crypto.sh || true
 
 echo "🎉 diy-part2.sh 执行完毕 (author=$FW_AUTHOR)"
