@@ -96,21 +96,12 @@ if [ "$ADD_LUCI_APP" = "true" ]; then
   rm -rf "$LUCI_APP_TMP"
 fi
 # --- luci-app-gecoosac ---
-# ⚠ 仓库里是两个目录：luci-app-gecoosac（前端）+ gecoosac（核心，按架构下载预编译二进制，
-#   PROVIDES 了 gecoosac-files / gecoosac-common 两个虚包），两个都要拷进 package/。
+# ⚠ gecoosac 的 Build/Prepare 里是 `cp ../LICENSE`（相对「包目录」的上一级），
+#   所以必须把【整个仓库】克隆进 package/custom，让 ../LICENSE 命中仓库根的 LICENSE。
+#   只拷子目录会因找不到 LICENSE 在 .prepared 阶段直接失败（Error 1）。
 if [ "$ADD_GECOOSAC" = "true" ]; then
-  GECOO_TMP="$(mktemp -d)/gecoo"
-  clone https://github.com/laipeng668/luci-app-gecoosac "$GECOO_TMP" main
-  for p in luci-app-gecoosac gecoosac; do
-    if [ -d "$GECOO_TMP/$p" ]; then
-      rm -rf "$PKG_DIR/$p"
-      cp -a "$GECOO_TMP/$p" "$PKG_DIR/$p"
-      echo "✅ 已拷贝: $p"
-    else
-      echo "::error::$p 不存在"
-    fi
-  done
-  rm -rf "$GECOO_TMP"
+  clone https://github.com/laipeng668/luci-app-gecoosac "$PKG_DIR/gecoosac-repo" main
+  [ -f "$PKG_DIR/gecoosac-repo/LICENSE" ] && echo "✅ gecoosac 仓库就位（含 LICENSE，../LICENSE 可解析）"
 fi
 
 # =========================================================
