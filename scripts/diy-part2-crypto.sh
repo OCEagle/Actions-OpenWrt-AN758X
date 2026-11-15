@@ -156,8 +156,10 @@ fi
 # ============================== ② 可选包：ChaCha20-Poly1305 ==============================
 if [ "$OPT_CRYPTO_CHACHA" = "1" ]; then
   echo "追加可选包: ChaCha20-Poly1305"
-  # aarch64 上 kmod-crypto-lib-chacha20 会自动带 CONFIG_CRYPTO_CHACHA20_NEON，
-  # chacha20poly1305 同理，NEON 版无需手写内核符号。
+  # ⚠ 更正：mainline Linux 并没有 CONFIG_CRYPTO_CHACHA20_NEON 这个符号，
+  #   arch/arm64/crypto 下也没有 chacha 的 NEON 实现（只有 aes/sm4/ghash），
+  #   所以这些包在 AN7581（Cortex-A53）上跑的是 chacha20poly1305-generic（标量）。
+  #   本段只保证「模块可用」，不提供任何 NEON 加速；opt_chacha 在本机型收益≈0。
   append_pkg \
   CONFIG_PACKAGE_kmod-crypto-lib-chacha20=y \
   CONFIG_PACKAGE_kmod-crypto-lib-chacha20poly1305=y \
@@ -201,8 +203,15 @@ if [ "$OPT_CRYPTO_EIP93" = "1" ]; then
   set_kcfg "$KCFG" "CONFIG_CRYPTO_HW=y"
 fi
 
-# ============================== ④ 用户态 /dev/crypto 接口（随任一开关开） ==============================
-if [ "$OPT_CRYPTO_EIP93" = "1" ] || [ "$OPT_CRYPTO_CHACHA" = "1" ]; then
+# ============================== ④ 用户态 /dev/crypto 接口：默认不启用 ==============================
+# ⚠ 重要教训：libopenssl-devcrypto 会往 /etc/ssl/openssl.cnf 里挂全局 engines_sect，
+#   开机后所有链接 OpenSSL 的程序（dnsmasq / uhttpd / dropbear / wpad …）都会尝试
+#   初始化 devcrypto 引擎；一旦失败就整进程退出 —— 实测会导致 dnsmasq 不启动、
+#   局域网拿不到 DHCPv4（表现为只剩 IPv6 链路地址、打不开 LuCI）。
+#   而 ChaCha / AES 的加速走的是内核 crypto API，与本引擎无关，完全不需要它。
+#   因此这里整体关闭；确实要用 EIP93 用户态直通时，请先自行验证 /dev/crypto 与
+#   openssl engines 文案，再手工加上这三个包。
+if false; then
   append_pkg \
   CONFIG_PACKAGE_kmod-crypto-user=y \
   CONFIG_PACKAGE_kmod-cryptodev=y \
