@@ -724,7 +724,7 @@ jobs:
           OPT_MISS=""
           for p in luci-app-airoha-npu luci-app-pon-status luci-app-natmode luci-app-igmpproxy \
                    luci-app-openclash luci-app-easytier easytier-noweb luci-app-lucky luci-app-owq-wol \
-                   luci-theme-vantage luci-app-gecoosac fitblk; do
+                   luci-theme-vantage luci-app-gecoosac; do
             if ! grep -q "^CONFIG_PACKAGE_${p}=y" .config; then
               OPT_MISS="$OPT_MISS $p"
               echo "::warning::${p} 在 defconfig 后未启用"
