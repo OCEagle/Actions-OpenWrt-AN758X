@@ -23,6 +23,7 @@ ADD_FLUENT=true        # luci-theme-fluent：Fluent 2 风格主题
 ADD_FLUENT_LITE=false  # luci-theme-fluent-lite：轻量版（与 fluent 互斥，二选一）
 ADD_FLUENT_DASH=false  # luci-mod-fluentdashboard：可选状态概览卡片
 ADD_VANTAGE=true        # luci-theme-vantage：Vantage 主题（anothaDev/luci-theme-vantage，包在仓库子目录）
+ADD_GECOOSAC=true      # luci-app-gecoosac：Gecoo SAC 小娱/宽带认证（前端 + 预编译核心）
 ADD_PASSWALL=true      # luci-app-passwall（只用 feeds 的依赖包）
 ADD_OPENCLASH=true     # luci-app-openclash ⚠ 依赖 Ruby/Rust，编译极慢
 ADD_MOSDNS=true        # luci-app-mosdns（本体只用 feeds 的 mosdns）
@@ -101,6 +102,23 @@ fi
 if [ -f package/utils/fitblk/Makefile ] && grep -q 'DEPENDS:=+fit-check-sign' package/utils/fitblk/Makefile; then
   sed -i 's|DEPENDS:=+fit-check-sign|DEPENDS:=|' package/utils/fitblk/Makefile
   echo "✅ fitblk: 已移除不存在的 fit-check-sign 依赖"
+fi
+# --- luci-app-gecoosac ---
+# ⚠ 仓库里是两个目录：luci-app-gecoosac（前端）+ gecoosac（核心，按架构下载预编译二进制，
+#   PROVIDES 了 gecoosac-files / gecoosac-common 两个虚包），两个都要拷进 package/。
+if [ "$ADD_GECOOSAC" = "true" ]; then
+  GECOO_TMP="$(mktemp -d)/gecoo"
+  clone https://github.com/laipeng668/luci-app-gecoosac "$GECOO_TMP" main
+  for p in luci-app-gecoosac gecoosac; do
+    if [ -d "$GECOO_TMP/$p" ]; then
+      rm -rf "$PKG_DIR/$p"
+      cp -a "$GECOO_TMP/$p" "$PKG_DIR/$p"
+      echo "✅ 已拷贝: $p"
+    else
+      echo "::error::$p 不存在"
+    fi
+  done
+  rm -rf "$GECOO_TMP"
 fi
 
 # =========================================================
