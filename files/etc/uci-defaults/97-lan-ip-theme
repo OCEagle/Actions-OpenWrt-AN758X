@@ -1,10 +1,20 @@
 #!/bin/sh
-# 040MD 默认值：LAN 192.168.8.1 + 默认主题 Vantage
-# 注意：改 ipaddr 必须同时把 DHCP 池挪进新网段，否则客户端拿到旧网段地址
+# 040MD 出厂默认值：LAN 192.168.8.1/24 + 默认主题 Vantage
+#
+# ⚠ 必须带 /24（CIDR 前缀），不能只写裸 IP：
+#   config_generate 生成的原始写法是 add_list ipaddr='192.168.1.1/24'（带前缀），
+#   netifd 的 split_netmask() 只在字符串含 "/" 时才写 netmask，裸 IP 会按 /32 处理，
+#   结果 br-lan 上没有 192.168.8.0/24 直连网段 → dnsmasq 无法下发 DHCPv4
+#   （客户端只拿到 IPv6 链路地址、LuCI 也打不开）。
+#
+# 另外用 set 会整条替换 config_generate 写的 ipaddr，所以这里必须自己补全 prefix 与 proto。
 uci -q batch <<'UCI'
-set network.lan.ipaddr='192.168.8.1'
+set network.lan.proto='static'
+set network.lan.ipaddr='192.168.8.1/24'
+delete network.lan.netmask
 set dhcp.lan.start='100'
 set dhcp.lan.limit='150'
+set dhcp.lan.leasetime='12h'
 set luci.main.mediaurlbase='/luci-static/vantage'
 set luci.themes.Vantage='/luci-static/vantage'
 commit network
