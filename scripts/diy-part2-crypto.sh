@@ -116,24 +116,22 @@ if [ "$OPT_CRYPTO_ARM64CE" = "1" ]; then
 
   # 用 for 直接枚举，不用 IFS + set --。
   # 本文件被 source 时 set -- 会把父脚本 diy-part2.sh 的位置参数清空。
-  # 只放两个 SoC 都成立的基础项（SIMD 是汇编实现前置，CRYPTD 提供异步包装）。
-  # ⚠ CE（Crypto Extensions）专用实现不能放这里：AN7581 是 Cortex-A53，
-  #   /proc/cpuinfo 没有 aes/sha2，这些模块编进去也不会注册，白占体积。
   COMMON_KCFG="
+CONFIG_ARM64_CRYPTO=y
 CONFIG_CRYPTO_SIMD=y
-CONFIG_CRYPTO_CRYPTD=y"
+CONFIG_CRYPTO_CRYPTD=y
+CONFIG_CRYPTO_AES_ARM64=y
+CONFIG_CRYPTO_SHA256_ARM64=y
+CONFIG_CRYPTO_SHA512_ARM64=y"
 
   if [ "$SOC" = "an7583" ]; then
     # AN7583: /proc/cpuinfo 有 aes pmull sha1 sha2，走 Crypto Extensions
     SOC_KCFG="
-CONFIG_CRYPTO_AES_ARM64=y
 CONFIG_CRYPTO_AES_ARM64_CE=y
 CONFIG_CRYPTO_AES_ARM64_CE_BLK=y
 CONFIG_CRYPTO_AES_ARM64_CE_CCM=y
 CONFIG_CRYPTO_GHASH_ARM64_CE=y
 CONFIG_CRYPTO_SHA1_ARM64_CE=y
-CONFIG_CRYPTO_SHA256_ARM64=y
-CONFIG_CRYPTO_SHA512_ARM64=y
 CONFIG_CRYPTO_SHA2_ARM64_CE=y
 CONFIG_CRYPTO_SHA512_ARM64_CE=y"
   else
@@ -156,10 +154,8 @@ fi
 # ============================== ② 可选包：ChaCha20-Poly1305 ==============================
 if [ "$OPT_CRYPTO_CHACHA" = "1" ]; then
   echo "追加可选包: ChaCha20-Poly1305"
-  # ⚠ 更正：mainline Linux 并没有 CONFIG_CRYPTO_CHACHA20_NEON 这个符号，
-  #   arch/arm64/crypto 下也没有 chacha 的 NEON 实现（只有 aes/sm4/ghash），
-  #   所以这些包在 AN7581（Cortex-A53）上跑的是 chacha20poly1305-generic（标量）。
-  #   本段只保证「模块可用」，不提供任何 NEON 加速；opt_chacha 在本机型收益≈0。
+  # aarch64 上 kmod-crypto-lib-chacha20 会自动带 CONFIG_CRYPTO_CHACHA20_NEON，
+  # chacha20poly1305 同理，NEON 版无需手写内核符号。
   append_pkg \
   CONFIG_PACKAGE_kmod-crypto-lib-chacha20=y \
   CONFIG_PACKAGE_kmod-crypto-lib-chacha20poly1305=y \
@@ -203,15 +199,8 @@ if [ "$OPT_CRYPTO_EIP93" = "1" ]; then
   set_kcfg "$KCFG" "CONFIG_CRYPTO_HW=y"
 fi
 
-# ============================== ④ 用户态 /dev/crypto 接口：默认不启用 ==============================
-# ⚠ 重要教训：libopenssl-devcrypto 会往 /etc/ssl/openssl.cnf 里挂全局 engines_sect，
-#   开机后所有链接 OpenSSL 的程序（dnsmasq / uhttpd / dropbear / wpad …）都会尝试
-#   初始化 devcrypto 引擎；一旦失败就整进程退出 —— 实测会导致 dnsmasq 不启动、
-#   局域网拿不到 DHCPv4（表现为只剩 IPv6 链路地址、打不开 LuCI）。
-#   而 ChaCha / AES 的加速走的是内核 crypto API，与本引擎无关，完全不需要它。
-#   因此这里整体关闭；确实要用 EIP93 用户态直通时，请先自行验证 /dev/crypto 与
-#   openssl engines 文案，再手工加上这三个包。
-if false; then
+# ============================== ④ 用户态 /dev/crypto 接口（随任一开关开） ==============================
+if [ "$OPT_CRYPTO_EIP93" = "1" ] || [ "$OPT_CRYPTO_CHACHA" = "1" ]; then
   append_pkg \
   CONFIG_PACKAGE_kmod-crypto-user=y \
   CONFIG_PACKAGE_kmod-cryptodev=y \
