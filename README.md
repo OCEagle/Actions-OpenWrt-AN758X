@@ -23,7 +23,7 @@
 | 1 | 工作流名称 | `Build 040MD (Nokia XG-040G-MD UBI)` |
 | 2 | `soc` 默认 | `an7581` |
 | 3 | `profile` 默认 | `nokia_xg-040g-md-ubi` |
-| 4 | `opt_arm64ce` / `opt_chacha` / `opt_eip93` 默认 | `0` / `0` / `0`（原因见下文「加密开关」） |
+| 4 | `opt_arm64ce` / `opt_chacha` / `opt_eip93` 默认 | `0` / `0` / `0` |
 | 5 | `fw_author` 默认 | `openwrt` |
 | 6 | `private_repo` 默认 | `none` |
 | 7 | 新增 2 个步骤 | `Append 040MD config delta`（追加 `configs/040md.config`）+ `Pull 040MD extra plugins`（执行 `scripts/040md-extra.sh`） |
@@ -55,18 +55,6 @@
 | LAN IP | `192.168.8.1`（DHCP 池 `100` 起、`150` 个） |
 | 默认 LuCI 主题 | `luci-theme-vantage`（`/luci-static/vantage`） |
 
-### 加密开关：默认全关
-
-`opt_arm64ce` / `opt_chacha` / `opt_eip93` 三项默认都是 `0`，原因：
-
-1. 只要 `opt_chacha=1` 或 `opt_eip93=1`，上游 `scripts/diy-part2-crypto.sh` 就会拉入 `kmod-cryptodev` + `libopenssl-devcrypto`；
-   后者会往 `/etc/ssl/openssl.cnf` 挂**全局** `engines` 段，开机后所有链接 OpenSSL 的程序（dnsmasq / uhttpd / dropbear / wpad）
-   都会尝试初始化 devcrypto 引擎，失败即整进程退出 —— 实测会导致 **dnsmasq 不启动、局域网拿不到 DHCPv4**
-   （表现为设备只剩 IPv6 链路地址、打不开 LuCI）。
-2. `opt_arm64ce=1` 只写内核符号（AN7581 → `CONFIG_CRYPTO_AES_ARM64_BS` NEON 位切片；AN7583 → Crypto Extensions 组），
-   **不碰 OpenSSL 引擎**，可以单独开启且安全。
-3. 另注：arm64 内核**没有** `CONFIG_CRYPTO_CHACHA20_NEON` 这个符号（`arch/arm64/crypto` 下只有 aes / sm4 / ghash），
-   因此 `opt_chacha` 在 AN7581 / AN7583 上只是多装模块、几乎不加速。
 ## 快速开始
 
 免费 runner 单次上限 6 小时（job 350 分钟），首次全量编译（工具链 + 内核 + 全包）大概率超时，按这个顺序跑：
