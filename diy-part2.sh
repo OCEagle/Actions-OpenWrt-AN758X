@@ -242,6 +242,11 @@ fi
 # 用 -f 不用 -x：git checkout / Windows 打包会丢可执行位。
 # || true：本文件是 set -euo pipefail，子脚本返回非 0 会让整轮构建中断，
 # 而加密只是可选增强。
-[ -f scripts/diy-part2-crypto.sh ] && . ./scripts/diy-part2-crypto.sh || true
+CRYPTO_SH="$(dirname "$0")/scripts/diy-part2-crypto.sh"
+if [ -f "$CRYPTO_SH" ]; then
+  . "$CRYPTO_SH"
+else
+  echo "::warning::缺 $CRYPTO_SH —— 加密加速补丁未执行（ARM64CE=$OPT_CRYPTO_ARM64CE CHACHA=$OPT_CRYPTO_CHACHA EIP93=$OPT_CRYPTO_EIP93）"
+fi
 
 echo "🎉 diy-part2.sh 执行完毕 (author=$FW_AUTHOR)"
