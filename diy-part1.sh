@@ -22,8 +22,6 @@ ADD_AIROHA_NPU=true    # luci-app-airoha-npu：Airoha SoC 状态页（NPU/CPU/Fr
 ADD_FLUENT=true        # luci-theme-fluent：Fluent 2 风格主题
 ADD_FLUENT_LITE=false  # luci-theme-fluent-lite：轻量版（与 fluent 互斥，二选一）
 ADD_FLUENT_DASH=false  # luci-mod-fluentdashboard：可选状态概览卡片
-ADD_VANTAGE=true        # luci-theme-vantage：Vantage 主题（anothaDev/luci-theme-vantage，包在仓库子目录）
-ADD_GECOOSAC=true      # luci-app-gecoosac：Gecoo SAC 小娱/宽带认证（前端 + 预编译核心）
 ADD_PASSWALL=true      # luci-app-passwall（只用 feeds 的依赖包）
 ADD_OPENCLASH=true     # luci-app-openclash ⚠ 依赖 Ruby/Rust，编译极慢
 ADD_MOSDNS=true        # luci-app-mosdns（本体只用 feeds 的 mosdns）
@@ -95,14 +93,6 @@ if [ "$ADD_LUCI_APP" = "true" ]; then
   done
   rm -rf "$LUCI_APP_TMP"
 fi
-# --- luci-app-gecoosac ---
-# ⚠ gecoosac 的 Build/Prepare 里是 `cp ../LICENSE`（相对「包目录」的上一级），
-#   所以必须把【整个仓库】克隆进 package/custom，让 ../LICENSE 命中仓库根的 LICENSE。
-#   只拷子目录会因找不到 LICENSE 在 .prepared 阶段直接失败（Error 1）。
-if [ "$ADD_GECOOSAC" = "true" ]; then
-  clone https://github.com/laipeng668/luci-app-gecoosac "$PKG_DIR/gecoosac-repo" main
-  [ -f "$PKG_DIR/gecoosac-repo/LICENSE" ] && echo "✅ gecoosac 仓库就位（含 LICENSE，../LICENSE 可解析）"
-fi
 
 # =========================================================
 # FTTR 后端三件套 ★HM2004-DU 专属，源 qwe-qaq/openwrt-fttr（私有）
@@ -114,7 +104,7 @@ fi
 # =========================================================
 if [ "$ADD_FTTR" = "true" ] && [ "$FTTR_PROFILE" = "h3c_hm2004-du" ]; then
   # 仓库与分支由 workflow 注入，本地手工跑时回退到下面的默认值
-  FTTR_FEED_URL="https://github.com/${PRIVATE_REPO:-qwe-qaq/openwrt-fttr}"
+  FTTR_FEED_URL="https://github.com/${PRIVATE_REPO:-LazuliKao/openwrt-fttr}"
   FTTR_FEED_BRANCH="${PRIVATE_REPO_BRANCH:-main}"
   FTTR_FEED_TMP="$(mktemp -d)/openwrt-fttr"
   if ! clone "$FTTR_FEED_URL" "$FTTR_FEED_TMP" "$FTTR_FEED_BRANCH"; then
@@ -324,21 +314,6 @@ if [ "$ADD_FLUENT" = "true" ] || [ "$ADD_FLUENT_LITE" = "true" ] || [ "$ADD_FLUE
     echo "✅ 已拷贝: $p"
   done
   rm -rf "$FLUENT_TMP"
-fi
-# --- luci-theme-vantage ---
-# ⚠ 主题包在仓库的 luci-theme-vantage/ 子目录下（仓库根另有 luci-app-vantage），
-#   必须把子目录拷出来，否则 buildroot 扫不到 Makefile（同 fluent 的处理）
-if [ "$ADD_VANTAGE" = "true" ]; then
-  VANTAGE_TMP="$(mktemp -d)/vantage"
-  clone https://github.com/anothaDev/luci-theme-vantage "$VANTAGE_TMP" main
-  if [ -d "$VANTAGE_TMP/luci-theme-vantage" ]; then
-    rm -rf "$PKG_DIR/luci-theme-vantage"
-    cp -a "$VANTAGE_TMP/luci-theme-vantage" "$PKG_DIR/luci-theme-vantage"
-    echo "✅ 已拷贝: luci-theme-vantage"
-  else
-    echo "::error::luci-theme-vantage 子目录不存在"
-  fi
-  rm -rf "$VANTAGE_TMP"
 fi
 
 if [ "$ADD_EASYTIER" = "true" ]; then
