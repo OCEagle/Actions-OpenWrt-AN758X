@@ -3,6 +3,70 @@
 基于 P3TERX `Actions-OpenWrt` 模板重构，源码指向 [pbs05/ponwrt](https://github.com/pbs05/ponwrt)（默认分支 `master`）。
 产出 AN7581 / AN7583 PON 光猫的 OpenWrt 固件，带机型选择、磁盘释放和滚动构建缓存。
 
+## 本仓库（OCEagle fork）的改动
+
+本 fork **只在上游文件之外新增文件**做定制。上游文件（`build-ponwrt.yml`、`configs/nokia_xg-040g-md-ubi.config`、
+`diy-part1.sh`、`diy-part2.sh`、`scripts/diy-part2-crypto.sh`）保持**字节级一致**，可随时从上游同步覆盖。
+所有定制集中在下面 4 个 040MD 专用文件里（上游没有这些文件，合并不会冲突）：
+
+| 文件 | 作用 |
+|---|---|
+| `.github/workflows/build-040md.yml` | 040MD 专用工作流 = 上游 `build-ponwrt.yml` 原版 + 下表 7 处改动 |
+| `configs/040md.config` | 增量包清单，由工作流 append 至上游机型 config 之后 |
+| `scripts/040md-extra.sh` | 040MD 专用插件拉取（上游 `diy-part1.sh` 不含这两个） |
+| `files/etc/uci-defaults/97-lan-ip-theme` | 首次启动默认值：LAN `192.168.8.1`、默认主题 Vantage |
+
+### `build-040md.yml` 相对上游 `build-ponwrt.yml` 的 7 处改动
+
+| # | 项 | 值 |
+|---|---|---|
+| 1 | 工作流名称 | `Build 040MD (Nokia XG-040G-MD UBI)` |
+| 2 | `soc` 默认 | `an7581` |
+| 3 | `profile` 默认 | `nokia_xg-040g-md-ubi` |
+| 4 | `opt_arm64ce` / `opt_chacha` / `opt_eip93` 默认 | `0` / `0` / `0`（原因见下文「加密开关」） |
+| 5 | `fw_author` 默认 | `openwrt` |
+| 6 | `private_repo` 默认 | `none` |
+| 7 | 新增 2 个步骤 | `Append 040MD config delta`（追加 `configs/040md.config`）+ `Pull 040MD extra plugins`（执行 `scripts/040md-extra.sh`） |
+
+其余输入沿用上游默认：`prebuilt_host=true`、`release_backup=true`、`upload_release=true`、`scope=firmware`。
+
+### `configs/040md.config` 追加的包
+
+| 包 | 说明 |
+|---|---|
+| `luci-app-openclash` | OpenClash（clash 内核在设备上运行时下载） |
+| `luci-app-easytier` + `easytier-noweb` | EasyTier 组网，用 **noweb 版**（只装 core/cli，无 web 控制台） |
+| `luci-app-lucky` | Lucky：DDNS + socat |
+| `luci-app-owq-wol` | 网络唤醒 |
+| `luci-app-gecoosac` | Gecoo SAC 认证（`gecoosac` 核心由依赖自动拉入） |
+| `luci-theme-vantage` | Vantage 主题 |
+
+### `scripts/040md-extra.sh` 额外拉取的两个第三方源
+
+| 仓库 | 处理方式 | 原因 |
+|---|---|---|
+| `laipeng668/luci-app-gecoosac` | **整仓克隆**到 `package/custom/gecoosac-repo` | 其 `Build/Prepare` 执行 `cp ../LICENSE`，只拷子目录会因找不到 LICENSE 而编译失败 |
+| `anothaDev/luci-theme-vantage` | 克隆后**只拷 `luci-theme-vantage/` 子目录** | 主题包位于子目录，整仓拷入会导致 buildroot 扫不到 Makefile |
+
+### 出厂默认值
+
+| 项 | 值 |
+|---|---|
+| LAN IP | `192.168.8.1`（DHCP 池 `100` 起、`150` 个） |
+| 默认 LuCI 主题 | `luci-theme-vantage`（`/luci-static/vantage`） |
+
+### 加密开关：默认全关
+
+`opt_arm64ce` / `opt_chacha` / `opt_eip93` 三项默认都是 `0`，原因：
+
+1. 只要 `opt_chacha=1` 或 `opt_eip93=1`，上游 `scripts/diy-part2-crypto.sh` 就会拉入 `kmod-cryptodev` + `libopenssl-devcrypto`；
+   后者会往 `/etc/ssl/openssl.cnf` 挂**全局** `engines` 段，开机后所有链接 OpenSSL 的程序（dnsmasq / uhttpd / dropbear / wpad）
+   都会尝试初始化 devcrypto 引擎，失败即整进程退出 —— 实测会导致 **dnsmasq 不启动、局域网拿不到 DHCPv4**
+   （表现为设备只剩 IPv6 链路地址、打不开 LuCI）。
+2. `opt_arm64ce=1` 只写内核符号（AN7581 → `CONFIG_CRYPTO_AES_ARM64_BS` NEON 位切片；AN7583 → Crypto Extensions 组），
+   **不碰 OpenSSL 引擎**，可以单独开启且安全。
+3. 另注：arm64 内核**没有** `CONFIG_CRYPTO_CHACHA20_NEON` 这个符号（`arch/arm64/crypto` 下只有 aes / sm4 / ghash），
+   因此 `opt_chacha` 在 AN7581 / AN7583 上只是多装模块、几乎不加速。
 ## 快速开始
 
 免费 runner 单次上限 6 小时（job 350 分钟），首次全量编译（工具链 + 内核 + 全包）大概率超时，按这个顺序跑：
